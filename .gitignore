@@ -1,0 +1,81 @@
+# ======================================
+# Root .gitignore for Node + React Monorepo
+# backend/ (Node.js)
+# frontend/ (React)
+# ======================================
+
+# -------------------------
+# OS / Misc
+# -------------------------
+.DS_Store
+Thumbs.db
+
+# -------------------------
+# Environment files
+# -------------------------
+
+# -------------------------
+# IDE / Editor
+# -------------------------
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.verify-phone-980cb-firebase-adminsdk-fbsvc-a0e4ea4c56.json
+
+
+# ======================================
+# Frontend (React)
+# ======================================
+
+# Node modules
+frontend/node_modules/
+
+# Build output
+frontend/build/
+frontend/dist/
+
+# Coverage
+frontend/coverage/
+
+# React environment files
+
+# ======================================
+# Backend (Node)
+# ======================================
+
+# Node modules
+backend/node_modules/
+
+# Build output (if using TS or bundler)
+backend/dist/
+backend/build/
+
+# Coverage
+backend/coverage/
+
+
+# PM2 logs / runtime files
+backend/.pids
+backend/*.pid
+backend/*.seed
+backend/*.pid.lock
+
+
+# ======================================
+# Caches (global)
+# ======================================
+.cache/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# Logs (global)
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

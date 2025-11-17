@@ -1,0 +1,101 @@
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var TARGET_EMBED_ID = "vidalytics_embed__VUssBNIYVTdY_jR";  // Your embed div ID
+    let userIP = "";
+
+    fetch("https://api64.ipify.org?format=json")
+      .then((response) => response.json())
+      .then((data) => {
+        userIP = data.ip;
+      });
+
+    console.log(userIP);
+
+    var check = setInterval(function () {
+        if (
+            window.Vidalytics &&
+            window.Vidalytics.players &&
+            window.Vidalytics.players.length > 0
+        ) {
+            // Find the matching player
+            let targetPlayer = null;
+
+            window.Vidalytics.players.forEach(function (player) {
+                if (
+                    player &&
+                    player.embedDiv &&
+                    player.embedDiv.id === TARGET_EMBED_ID
+                ) {
+                    targetPlayer = player;
+                }
+            });
+
+            console.log(targetPlayer);
+
+            if (targetPlayer) {
+                clearInterval(check);
+                console.log("Tracking only this Vidalytics player:", TARGET_EMBED_ID);
+
+                let totalWatchTime = 0;
+                let lastTime = 0;
+
+                // Track time updates
+                targetPlayer.on('timeupdate', function (currentTime) {
+                    if (currentTime > lastTime) {
+                        totalWatchTime += (currentTime - lastTime);
+                    }
+                    lastTime = currentTime;
+                });
+
+                // When video ends
+                targetPlayer.on('ended', function () {
+                    console.log("Final watched time:", totalWatchTime);
+
+                    if (videoWatchTime) {
+
+                        let postData = {
+                            first_name: "",
+                            email: "",
+                            phone: "",
+                            ip_address: "",
+                            video_watch_time: String(videoWatchTime),
+                        };
+
+                        let userData = localStorage.getItem("_ud");
+                        if (userData) {
+                            userData = JSON.parse(userData);
+                        } else {
+                            userData = postData;
+                        }
+
+                        postData.first_name = userData?.first_name;
+                        postData.email = userData?.email;
+                        postData.phone = userData?.phone;
+                        postData.ip_address = userIP;
+                        postData.video_watch_time = String(videoWatchTime);
+
+                        console.log("Sending data:", postData);
+
+                        const apiUrl = "https://tracker-backend-iiwt.onrender.com/api/users/";
+
+                        // Use fetch with keepalive to send data before the tab closes
+                        fetch(apiUrl, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Access-Control-Allow-Origin": "*", // Note: this must be set by the server
+                                "Accept": "application/json",
+                            },
+                            body: JSON.stringify(postData),
+                            keepalive: true,
+                        });
+
+                        e.preventDefault();
+                        e.returnValue = ""; // Show a confirmation dialog
+                    }
+                });
+            }
+        }
+    }, 300);
+});
+</script>

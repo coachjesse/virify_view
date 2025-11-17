@@ -1,0 +1,116 @@
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    let startTime = Date.now(); // Track when the user starts watching
+    let video;
+    let videoStartTime = 0; // Track when the user starts watching the video
+    let videoWatchTime = 0; // Total time watched
+    // let isUserInteracted = false; // Track if user has interacted with the page
+    let userIP = "";
+
+    fetch("https://api64.ipify.org?format=json")
+      .then((response) => response.json())
+      .then((data) => {
+        userIP = data.ip;
+      });
+
+    // Function to attach event listeners to the video
+    function setupVideoTracking() {
+      console.log("Initializing video tracking...");
+      //video = document.getElementById("video-fo0UudI-KN-video-js_html5_api"); // Get video element after it's added
+      video = document.getElementById("vidalytics_embed__VUssBNIYVTdY_jR"); // Get video element after it's added
+		console.log("video", video);
+      if (video) {
+        videoStartTime = Date.now();
+
+        video.addEventListener("play", function () {
+          console.log("play");
+          videoStartTime = Date.now();
+        });
+
+        video.addEventListener("pause", function () {
+          console.log("Video paused");
+          if (videoStartTime > 0) {
+            videoWatchTime += Math.round((Date.now() - videoStartTime) / 1000);
+            videoStartTime = 0;
+          }
+        });
+
+        video.addEventListener("ended", function () {
+          console.log("Video ended");
+          if (videoStartTime > 0) {
+            videoWatchTime += Math.round((Date.now() - videoStartTime) / 1000);
+            videoStartTime = 0;
+          }
+        });
+      } else {
+        console.warn("Video element not found. Retrying...");
+        setTimeout(setupVideoTracking, 500); // Retry if video is not yet loaded
+      }
+    }
+
+    // Detect user interaction with the video or page
+    // document.addEventListener("click", () => (isUserInteracted = true));
+    // document.addEventListener("keydown", () => (isUserInteracted = true));
+    // document.addEventListener("mousemove", () => (isUserInteracted = true));
+
+    // Listen for clicks on the button that reveals the video
+    document.addEventListener("click", function (event) {
+      console.log("click video tracking...");
+      console.log(event.target.classList);
+      if (event.target.classList.contains("PlayToggleBoundary__wrapper")) {
+      
+        setTimeout(setupVideoTracking, 500); // Delay to ensure video is loaded
+      }
+    });
+
+    window.addEventListener("beforeunload", function (e) {
+      if (video && !video.paused) {
+        videoWatchTime += Math.round((Date.now() - videoStartTime) / 1000);
+      }
+      if(videoWatchTime){
+
+        let postData = {
+          first_name: "",
+          email: "",
+          phone: "",
+          ip_address: "",
+          video_watch_time: String(videoWatchTime),
+        };
+
+        let userData = localStorage.getItem("_ud");
+        if (userData) {
+          userData = JSON.parse(userData);
+        } else {
+          userData = postData;
+        }
+
+        postData.first_name = userData?.first_name;
+        postData.email = userData?.email;
+        postData.phone = userData?.phone;
+        postData.ip_address = userIP;
+        postData.video_watch_time = String(videoWatchTime);
+
+        console.log("Sending Data:", postData);
+
+        const apiUrl = "https://tracker-backend-iiwt.onrender.com/api/users/";
+
+        // Use fetch with keepalive to send data before the tab closes
+        // navigator.sendBeacon(apiUrl, JSON.stringify(postData)); // Send with sendBeacon
+
+        fetch(apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*", // Note: This should be set on the server side
+            "Accept": "application/json",
+          },
+          body: JSON.stringify(postData),
+          keepalive: true, // Ensures request is completed before the page unloads
+        });
+
+        e.preventDefault();
+        e.returnValue = ""; // Show a confirmation dialog
+      }
+    });
+  });
+</script>
