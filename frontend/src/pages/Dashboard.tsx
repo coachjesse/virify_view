@@ -22,6 +22,7 @@ const Dashboard = () => {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [processingStatus, setProcessingStatus] = useState<string>("");
+  const [remainingTime, setRemainingTime] = useState<number | null>(null);
   const [previewData, setPreviewData] = useState<ExcelPreview | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedColumnIndex, setSelectedColumnIndex] = useState<number | null>(null);
@@ -67,6 +68,26 @@ const Dashboard = () => {
   const updateProgress = (current: number, total: number) => {
     const percentage = Math.round((current / total) * 100);
     setProgress(Math.min(percentage, 95)); // Cap at 95% until complete
+  };
+
+  const formatRemainingTime = (ms: number | null): string => {
+    if (ms === null || ms <= 0 || !isFinite(ms)) {
+      return "Calculating...";
+    }
+
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    if (hours > 0) {
+      const remainingMinutes = minutes % 60;
+      return `${hours}h ${remainingMinutes}m`;
+    } else if (minutes > 0) {
+      const remainingSeconds = seconds % 60;
+      return `${minutes}m ${remainingSeconds}s`;
+    } else {
+      return `${seconds}s`;
+    }
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,9 +157,10 @@ const Dashboard = () => {
       const result = await verifyAndCategorizePhones(
         selectedFile,
         selectedColumnIndex,
-        (current, total, status) => {
+        (current, total, status, remainingTimeMs) => {
           setProcessingStatus(status);
           updateProgress(10 + (current / total) * 85, 100);
+          setRemainingTime(remainingTimeMs || null);
         },
         () => cancelProcessingRef.current // shouldCancel callback
       );
@@ -175,6 +197,7 @@ const Dashboard = () => {
     } finally {
       setIsProcessing(false);
       setProcessingStatus("");
+      setRemainingTime(null);
       cancelProcessingRef.current = false;
     }
   };
@@ -392,6 +415,11 @@ const Dashboard = () => {
                     <span className="text-muted-foreground">{progress}%</span>
                   </div>
                   <Progress value={progress} className="w-full" />
+                  {remainingTime !== null && (
+                    <div className="text-center text-sm text-muted-foreground">
+                      Estimated time remaining: <span className="font-semibold text-foreground">{formatRemainingTime(remainingTime)}</span>
+                    </div>
+                  )}
                   <Button
                     variant="destructive"
                     size="sm"

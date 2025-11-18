@@ -111,7 +111,7 @@ export async function processInBatches<T, R>(
     options: {
         concurrency?: number;
         minDelay?: number;
-        onProgress?: (current: number, total: number) => void;
+        onProgress?: (current: number, total: number, remainingTimeMs?: number) => void;
         shouldCancel?: () => boolean;
     } = {}
 ): Promise<R[]> {
@@ -127,6 +127,7 @@ export async function processInBatches<T, R>(
     const errors: Array<{ index: number; error: any }> = [];
     let completedCount = 0;
     let cancelled = false;
+    const startTime = Date.now();
 
     // Check cancellation status periodically
     const checkCancellation = () => {
@@ -158,7 +159,15 @@ export async function processInBatches<T, R>(
                 completedCount++;
                 
                 if (onProgress) {
-                    onProgress(completedCount, items.length);
+                    // Calculate remaining time (only after we have at least one completed item)
+                    let remainingTimeMs: number | undefined = undefined;
+                    if (completedCount > 0) {
+                        const elapsedTime = Date.now() - startTime;
+                        const averageTimePerItem = elapsedTime / completedCount;
+                        const remainingItems = items.length - completedCount;
+                        remainingTimeMs = remainingItems * averageTimePerItem;
+                    }
+                    onProgress(completedCount, items.length, remainingTimeMs);
                 }
             } catch (error: any) {
                 // Check if this is a cancellation
@@ -178,7 +187,15 @@ export async function processInBatches<T, R>(
                     completedCount++;
                     
                     if (onProgress) {
-                        onProgress(completedCount, items.length);
+                        // Calculate remaining time (only after we have at least one completed item)
+                        let remainingTimeMs: number | undefined = undefined;
+                        if (completedCount > 0) {
+                            const elapsedTime = Date.now() - startTime;
+                            const averageTimePerItem = elapsedTime / completedCount;
+                            const remainingItems = items.length - completedCount;
+                            remainingTimeMs = remainingItems * averageTimePerItem;
+                        }
+                        onProgress(completedCount, items.length, remainingTimeMs);
                     }
                 }
             }

@@ -221,7 +221,7 @@ export interface VerificationResult {
 export const verifyAndCategorizePhones = async (
     file: File,
     selectedColumnIndex: number,
-    onProgress?: (current: number, total: number, status: string) => void,
+    onProgress?: (current: number, total: number, status: string, remainingTimeMs?: number) => void,
     shouldCancel?: () => boolean
 ): Promise<VerificationResult> => {
     const apiKey = await getApiKey();
@@ -308,9 +308,9 @@ export const verifyAndCategorizePhones = async (
             {
                 concurrency: 5, // Process 5 numbers concurrently
                 minDelay: 200, // 200ms minimum delay between requests (5 req/sec)
-                onProgress: (current, total) => {
+                onProgress: (current, total, remainingTimeMs) => {
                     if (onProgress) {
-                        onProgress(current, total, `Verifying ${current}/${total} numbers...`);
+                        onProgress(current, total, `Verifying ${current}/${total} numbers...`, remainingTimeMs);
                     }
                 },
                 shouldCancel
