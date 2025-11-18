@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Shield, Upload, LogOut, CheckCircle2, Download, Settings, Key, X } from "lucide-react";
+import { Shield, Upload, LogOut, CheckCircle2, Download, Settings, Key, X, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { logout, onAuthChanged } from "@/apis/auth";
 import { getApiKey, setApiKey as saveApiKey, getApiKeyDisplay, verifyPhoneNumber } from "@/apis/numverify";
@@ -330,6 +330,10 @@ const Dashboard = () => {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">{userEmail}</span>
+            <Button onClick={() => navigate("/watch-times")} variant="outline" size="sm">
+              <Clock className="w-4 h-4 mr-2" />
+              Watch Times
+            </Button>
             <Button onClick={handleOpenSettings} variant="outline" size="sm">
               <Settings className="w-4 h-4 mr-2" />
               Settings
