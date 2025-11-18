@@ -11,7 +11,7 @@ export interface WatchTimeUser {
   __v: number;
 }
 
-const API_BASE_URL = "https://tracker-backend-iiwt.onrender.com/api/users/";
+const API_BASE_URL = "https://tracker-backend-iiwt.onrender.com/api/users/"; 
 
 /**
  * Fetch all watch time data from the API
