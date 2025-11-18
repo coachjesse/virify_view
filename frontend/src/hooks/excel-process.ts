@@ -1,6 +1,7 @@
 
 import * as XLSX from 'xlsx';
 import { verifyPhoneNumber, NumVerifyResponse, NumVerifyError, getApiKey } from '@/apis/numverify';
+import { processInBatches } from '@/lib/rate-limiter';
 
 export interface ExcelPreview {
     success: boolean;
@@ -268,89 +269,82 @@ export const verifyAndCategorizePhones = async (
         });
 
         const uniquePhones = Array.from(phoneNumberMap.entries());
-        const verifiedPhones: VerifiedPhoneNumber[] = [];
         const totalCount = uniquePhones.length;
 
-        // Verify each phone number
-        for (let i = 0; i < uniquePhones.length; i++) {
-            // Check for cancellation
-            if (shouldCancel && shouldCancel()) {
-                // Categorize numbers processed so far
-                const validNumbers = verifiedPhones.filter(p => p.valid);
-                const invalidNumbers = verifiedPhones.filter(p => !p.valid);
-                const mobileNumbers = validNumbers.filter(p => p.lineType === 'mobile');
-                const landlineNumbers = validNumbers.filter(p => p.lineType === 'landline');
+        // Process phone numbers in parallel batches with rate limiting
+        // Using 5 concurrent requests with 200ms minimum delay between requests
+        // This provides ~5 requests/second which is safe for most API tiers
+        const verificationResults = await processInBatches(
+            uniquePhones,
+            async ([phoneNumber, data], index) => {
+                // Check for cancellation before processing
+                if (shouldCancel && shouldCancel()) {
+                    throw new Error('Cancelled');
+                }
 
-                return {
-                    success: true,
-                    fileName: file.name,
-                    totalRows: analysisResult.totalRows,
-                    totalPhoneNumbers: verifiedPhones.length,
-                    validNumbers,
-                    invalidNumbers,
-                    mobileNumbers,
-                    landlineNumbers,
-                    cancelled: true,
-                    processedCount: verifiedPhones.length,
-                    totalCount: totalCount,
-                    originalData: originalData,
-                    selectedColumnIndex: selectedColumnIndex
+                const verification = await verifyPhoneNumber(apiKey, data.originalValue);
+                
+                // Check for cancellation after API call
+                if (shouldCancel && shouldCancel()) {
+                    throw new Error('Cancelled');
+                }
+                
+                const verifiedPhone: VerifiedPhoneNumber = {
+                    row: data.row,
+                    originalValue: data.originalValue,
+                    phoneNumber: phoneNumber,
+                    // formatted: data.formatted,
+                    valid: 'valid' in verification ? verification.valid : false,
+                    lineType: 'line_type' in verification ? verification.line_type : null,
+                    countryName: 'country_name' in verification ? verification.country_name : '',
+                    carrier: 'carrier' in verification ? verification.carrier : '',
+                    location: 'location' in verification ? verification.location : '',
+                    verificationData: 'valid' in verification ? verification : null,
+                    error: 'error' in verification ? verification.error.info : undefined
                 };
-            }
 
-            const [phoneNumber, data] = uniquePhones[i];
-            
-            if (onProgress) {
-                onProgress(i + 1, uniquePhones.length, `Verifying ${i + 1}/${uniquePhones.length}...`);
+                return verifiedPhone;
+            },
+            {
+                concurrency: 5, // Process 5 numbers concurrently
+                minDelay: 200, // 200ms minimum delay between requests (5 req/sec)
+                onProgress: (current, total) => {
+                    if (onProgress) {
+                        onProgress(current, total, `Verifying ${current}/${total} numbers...`);
+                    }
+                },
+                shouldCancel
             }
+        );
 
-            const verification = await verifyPhoneNumber(apiKey, data.originalValue);
-            
-            const verifiedPhone: VerifiedPhoneNumber = {
-                row: data.row,
-                originalValue: data.originalValue,
-                phoneNumber: phoneNumber,
-                // formatted: data.formatted,
-                valid: 'valid' in verification ? verification.valid : false,
-                lineType: 'line_type' in verification ? verification.line_type : null,
-                countryName: 'country_name' in verification ? verification.country_name : '',
-                carrier: 'carrier' in verification ? verification.carrier : '',
-                location: 'location' in verification ? verification.location : '',
-                verificationData: 'valid' in verification ? verification : null,
-                error: 'error' in verification ? verification.error.info : undefined
+        // Filter out any undefined results (from errors or cancellation)
+        const verifiedPhones = verificationResults.filter(
+            (result): result is VerifiedPhoneNumber => result !== undefined
+        );
+
+        // Check if processing was cancelled
+        if (shouldCancel && shouldCancel()) {
+            // Categorize numbers processed so far
+            const validNumbers = verifiedPhones.filter(p => p.valid);
+            const invalidNumbers = verifiedPhones.filter(p => !p.valid);
+            const mobileNumbers = validNumbers.filter(p => p.lineType === 'mobile');
+            const landlineNumbers = validNumbers.filter(p => p.lineType === 'landline');
+
+            return {
+                success: true,
+                fileName: file.name,
+                totalRows: analysisResult.totalRows,
+                totalPhoneNumbers: verifiedPhones.length,
+                validNumbers,
+                invalidNumbers,
+                mobileNumbers,
+                landlineNumbers,
+                cancelled: true,
+                processedCount: verifiedPhones.length,
+                totalCount: totalCount,
+                originalData: originalData,
+                selectedColumnIndex: selectedColumnIndex
             };
-
-            verifiedPhones.push(verifiedPhone);
-
-            // Check for cancellation before rate limiting delay
-            if (shouldCancel && shouldCancel()) {
-                // Categorize numbers processed so far
-                const validNumbers = verifiedPhones.filter(p => p.valid);
-                const invalidNumbers = verifiedPhones.filter(p => !p.valid);
-                const mobileNumbers = validNumbers.filter(p => p.lineType === 'mobile');
-                const landlineNumbers = validNumbers.filter(p => p.lineType === 'landline');
-
-                return {
-                    success: true,
-                    fileName: file.name,
-                    totalRows: analysisResult.totalRows,
-                    totalPhoneNumbers: verifiedPhones.length,
-                    validNumbers,
-                    invalidNumbers,
-                    mobileNumbers,
-                    landlineNumbers,
-                    cancelled: true,
-                    processedCount: verifiedPhones.length,
-                    totalCount: totalCount,
-                    originalData: originalData,
-                    selectedColumnIndex: selectedColumnIndex
-                };
-            }
-
-            // Rate limiting - wait 1 second between requests (NumVerify free tier limit)
-            if (i < uniquePhones.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
         }
 
         // Categorize numbers
