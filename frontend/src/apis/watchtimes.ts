@@ -36,5 +36,5 @@ export const fetchWatchTimes = async (): Promise<WatchTimeUser[]> => {
   } catch (error: any) {
     throw new Error(error.message || "Failed to fetch watch times data");
   }
-};
+}; 
 
