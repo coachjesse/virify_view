@@ -9,6 +9,9 @@ import { logout, onAuthChanged } from "@/apis/auth";
 import { fetchWatchTimes, WatchTimeUser } from "@/apis/watchtimes";
 import * as XLSX from "xlsx";
 
+const ITEMS_PER_PAGE = 15;
+type PaginationItem = number | "left-ellipsis" | "right-ellipsis";
+
 const WatchTimes = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -16,6 +19,7 @@ const WatchTimes = () => {
   const [watchTimes, setWatchTimes] = useState<WatchTimeUser[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
   useEffect(() => {
     const unsub = onAuthChanged((user) => {
@@ -42,6 +46,7 @@ const WatchTimes = () => {
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       setWatchTimes(sortedData);
+      setCurrentPage(1);
     } catch (err: any) {
       setError(err.message || "Failed to load watch times");
       toast({
@@ -141,6 +146,48 @@ const WatchTimes = () => {
   const recordsWithInfo = watchTimes.filter(
     (item) => item.first_name || item.email || item.phone
   ).length;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedWatchTimes = watchTimes.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE
+  );
+  const displayedRangeStart = totalRecords === 0 ? 0 : startIndex + 1;
+  const displayedRangeEnd = startIndex + paginatedWatchTimes.length;
+
+  const paginationItems: PaginationItem[] = (() => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    const items: PaginationItem[] = [1];
+    const showLeftEllipsis = currentPage > 3;
+    const showRightEllipsis = currentPage < totalPages - 2;
+
+    if (showLeftEllipsis) {
+      items.push("left-ellipsis");
+    }
+
+    const middleStart = showLeftEllipsis ? currentPage - 1 : 2;
+    const middleEnd = showRightEllipsis ? currentPage + 1 : totalPages - 1;
+
+    for (let page = middleStart; page <= middleEnd; page++) {
+      items.push(page);
+    }
+
+    if (showRightEllipsis) {
+      items.push("right-ellipsis");
+    }
+
+    items.push(totalPages);
+
+    return items;
+  })();
+
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-hero">
@@ -251,6 +298,9 @@ const WatchTimes = () => {
                   <h3 className="text-lg font-semibold text-foreground">
                     Watch Time Records ({watchTimes.length.toLocaleString()})
                   </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages}
+                  </p>
                 </div>
                 <div className="overflow-x-auto border rounded-lg">
                   <Table>
@@ -266,10 +316,10 @@ const WatchTimes = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {watchTimes.map((item, index) => (
+                      {paginatedWatchTimes.map((item, index) => (
                         <TableRow key={item._id}>
                           <TableCell className="font-medium text-muted-foreground">
-                            {index + 1}
+                            {startIndex + index + 1}
                           </TableCell>
                           <TableCell>
                             {item.first_name || (
@@ -302,6 +352,50 @@ const WatchTimes = () => {
                       ))}
                     </TableBody>
                   </Table>
+                </div>
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    Showing {displayedRangeStart.toLocaleString()}-
+                    {displayedRangeEnd.toLocaleString()} of{" "}
+                    {totalRecords.toLocaleString()} records
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    {paginationItems.map((item, idx) =>
+                      typeof item === "number" ? (
+                        <Button
+                          key={`page-${item}`}
+                          variant={item === currentPage ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handlePageChange(item)}
+                        >
+                          {item}
+                        </Button>
+                      ) : (
+                        <span
+                          key={`${item}-${idx}`}
+                          className="text-sm text-muted-foreground px-2"
+                        >
+                          &hellip;
+                        </span>
+                      )
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
