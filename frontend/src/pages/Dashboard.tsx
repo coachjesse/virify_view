@@ -259,7 +259,6 @@ const Dashboard = () => {
 
   const handleOpenSettings = async () => {
     const currentKey = await getApiKey();
-    console.log(currentKey);
     setApiKeyInput(currentKey);
     setIsSettingsOpen(true);
   };
@@ -276,17 +275,21 @@ const Dashboard = () => {
       return;
     }
 
-    // Save the API key to localStorage using the API function
-    saveApiKey(trimmedKey);
-    
-    // Update local state
-    setApiKey(trimmedKey);
-    
-    toast({
-      title: "API Key Saved",
-      description: "Your NumVerify API key has been saved successfully.",
-    });
-    setIsSettingsOpen(false);
+    try {
+      await saveApiKey(trimmedKey);
+      setApiKey(trimmedKey);
+      toast({
+        title: "API Key Saved",
+        description: "Your NumVerify API key has been saved successfully.",
+      });
+      setIsSettingsOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Failed to save API key",
+        description: error?.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleTestApiKey = async (apiKey: string) => {

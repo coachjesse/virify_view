@@ -4,6 +4,10 @@
 
 **URL**: https://lovable.dev/projects/77687325-c761-4a46-9790-9663f0d59e4f
 
+## Backend service
+
+The frontend now expects a companion Express API (see `../backend`) that stores NumVerify API keys in MongoDB. Point `VITE_BACKEND_URL` to the running API (default `http://localhost:4000`) before starting `npm run dev`.
+
 ## How can I edit this code?
 
 There are several ways of editing your application.

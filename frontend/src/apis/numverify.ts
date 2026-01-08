@@ -1,8 +1,5 @@
 // NumVerify API integration
-// Note: You'll need to add your NumVerify API key to environment variables
-
-import { db } from "@/firebase/firebase";
-import { deleteDoc, doc, getDoc, setDoc } from "firebase/firestore";
+// Note: You'll need to add your NumVerify API key through the backend service
 
 export interface NumVerifyResponse {
     valid: boolean;
@@ -26,37 +23,47 @@ export interface NumVerifyError {
     };
 }
 
-// Storage key for API key in localStorage
-const API_KEY_STORAGE_KEY = 'numverify_api_key';
+const API_SERVICE_BASE_URL =
+    (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/+$/, "") ||
+    "http://localhost:4000";
+const API_KEY_ENDPOINT = `${API_SERVICE_BASE_URL}/api/api-key`;
 
-/**
- * Get API key from localStorage or environment variables
- * Priority: localStorage > environment variable
- */
-export const getApiKey = async (): Promise<string> => {
-    // 1️⃣ Try Firestore first
-    const ref = doc(db, "apikey", "userApiKey");
-    const snap = await getDoc(ref);
-
-    if (snap.exists()) {
-        const value = snap.data().value;
-        if (typeof value === "string" && value.trim()) {
-            return value.trim();
-        }
+const parseApiKeyResponse = async (response: Response): Promise<string> => {
+    if (!response.ok) {
+        throw new Error(`API key request failed: ${response.status} ${response.statusText}`);
     }
-    return ""
+
+    const data = await response.json().catch(() => ({}));
+    return typeof data.apiKey === "string" ? data.apiKey : "";
+};
+
+export const getApiKey = async (): Promise<string> => {
+    try {
+        const response = await fetch(API_KEY_ENDPOINT);
+        return await parseApiKeyResponse(response);
+    } catch (error) {
+        console.error("Failed to fetch API key", error);
+        return "";
+    }
 };
 
 /**
- * Save API key to localStorage
+ * Save API key to backend storage (MongoDB via the API service)
  */
 export const setApiKey = async (apiKey: string): Promise<void> => {
-    const ref = doc(db, "apikey", "userApiKey");
+    try {
+        const response = await fetch(API_KEY_ENDPOINT, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ apiKey }),
+        });
 
-    if (apiKey.trim()) {
-        await setDoc(ref, { value: apiKey.trim() });
-    } else {
-        await deleteDoc(ref);
+        await parseApiKeyResponse(response);
+    } catch (error) {
+        console.error("Failed to save API key", error);
+        throw error;
     }
 };
 
