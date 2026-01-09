@@ -10,10 +10,10 @@ const parseNumber = (value: string | undefined, fallback: number): number => {
 
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development", // development, production, test
-  port: parseNumber(process.env.PORT, 4000),
-  mongoUri: process.env.MONGODB_URI ?? "",
-  corsOrigin: process.env.CORS_ORIGIN ?? "*",
-  appName: process.env.APP_NAME ?? "virify-backend",
+  port: parseNumber(process.env.PORT, 5000),
+  mongoUri: "mongodb+srv://coachjamesonline_db_user:MmUy9g3VMjBH6OFK@cluster0.1jadkfl.mongodb.net/",
+  corsOrigin: "virify-view.vercel.app",
+  appName: "virify-backend",
 };
 
 if (!env.mongoUri) {
