@@ -24,8 +24,8 @@ export interface NumVerifyError {
 }
 
 const API_SERVICE_BASE_URL =
-    (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/+$/, "") ||
-    "http://localhost:4000";
+    ("https://virify-view.onrender.com" as string | undefined)?.replace(/\/+$/, "") ||
+    "https://virify-view.onrender.com";
 const API_KEY_ENDPOINT = `${API_SERVICE_BASE_URL}/api/api-key`;
 
 const parseApiKeyResponse = async (response: Response): Promise<string> => {
