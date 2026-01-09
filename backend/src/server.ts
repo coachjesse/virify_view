@@ -8,6 +8,7 @@ const app = express();
 
 app.use(
   cors({
+    
     origin: env.corsOrigin === "*" ? "*" : env.corsOrigin.split(",").map((origin) => origin.trim()),
     credentials: false,
   })
