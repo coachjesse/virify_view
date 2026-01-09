@@ -9,7 +9,7 @@ const parseNumber = (value: string | undefined, fallback: number): number => {
 };
 
 export const env = {
-  nodeEnv: process.env.NODE_ENV ?? "development",
+  nodeEnv: process.env.NODE_ENV ?? "development", // development, production, test
   port: parseNumber(process.env.PORT, 4000),
   mongoUri: process.env.MONGODB_URI ?? "",
   corsOrigin: process.env.CORS_ORIGIN ?? "*",
