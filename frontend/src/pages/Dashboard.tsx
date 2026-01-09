@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Shield, Upload, LogOut, CheckCircle2, Download, Settings, Key, X, Clock } from "lucide-react";
+import { Shield, Upload, LogOut, CheckCircle2, Download, Settings, Key, X, Clock, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { logout, onAuthChanged } from "@/apis/auth";
 import { getApiKey, setApiKey as saveApiKey, getApiKeyDisplay, verifyPhoneNumber } from "@/apis/numverify";
@@ -31,6 +31,7 @@ const Dashboard = () => {
   const [apiKey, setApiKey] = useState<string>("");
   const [apiKeyInput, setApiKeyInput] = useState<string>("");
   const [isTestingApiKey, setIsTestingApiKey] = useState<boolean>(false);
+  const [isApiKeyVisible, setIsApiKeyVisible] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cancelProcessingRef = useRef<boolean>(false);
 
@@ -260,6 +261,7 @@ const Dashboard = () => {
   const handleOpenSettings = async () => {
     const currentKey = await getApiKey();
     setApiKeyInput(currentKey);
+    setIsApiKeyVisible(false);
     setIsSettingsOpen(true);
   };
 
@@ -747,14 +749,28 @@ const Dashboard = () => {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="api-key">API Key</Label>
-              <Input
-                id="api-key"
-                type="password"
-                placeholder="Enter your NumVerify API key"
-                value={apiKeyInput}
-                onChange={(e) => setApiKeyInput(e.target.value)}
-                disabled={isTestingApiKey}
-              />
+              <div className="relative">
+                <Input
+                  id="api-key"
+                  type={isApiKeyVisible ? "text" : "password"}
+                  placeholder="Enter your NumVerify API key"
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  disabled={isTestingApiKey}
+                  className="pr-12"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute inset-y-0 right-1 my-auto text-muted-foreground hover:text-foreground"
+                  onClick={() => setIsApiKeyVisible((prev) => !prev)}
+                  disabled={isTestingApiKey}
+                  aria-label={isApiKeyVisible ? "Hide API key" : "Show API key"}
+                >
+                  {isApiKeyVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
               {apiKey && (
                 <p className="text-xs text-muted-foreground">
                   Current key: {getApiKeyDisplay(apiKeyInput)}
