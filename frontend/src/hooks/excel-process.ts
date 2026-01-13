@@ -3,6 +3,67 @@ import * as XLSX from 'xlsx';
 import { verifyPhoneNumber, NumVerifyResponse, NumVerifyError, getApiKey } from '@/apis/numverify';
 import { processInBatches } from '@/lib/rate-limiter';
 
+const TEXAS_AREA_CODES = new Set([
+    '210', // San Antonio
+    '214', '469', '972', '945', // Dallas / Fort Worth overlays
+    '254', // Waco / Killeen
+    '281', '346', '713', '832', // Houston overlays
+    '325', // Abilene / San Angelo
+    '361', // Corpus Christi
+    '409', // Beaumont / Galveston
+    '430', '903', // Northeast Texas
+    '432', // Midland / Odessa
+    '512', '737', // Austin overlays
+    '682', '817', // Fort Worth overlays
+    '726', // San Antonio overlay
+    '806', // Lubbock / Amarillo
+    '830', // Hill Country
+    '915', // El Paso
+    '936', // Huntsville / Conroe
+    '940', // Denton / Wichita Falls
+    '956', // Rio Grande Valley
+    '979'  // Bryan / College Station
+]);
+
+const normalizeDigits = (value?: string | null): string => {
+    if (!value) return '';
+    return value.replace(/\D/g, '');
+};
+
+const extractUsAreaCode = (value: string): string | null => {
+    const digits = normalizeDigits(value);
+    if (!digits) return null;
+
+    if (digits.length >= 11 && digits.startsWith('1')) {
+        const remaining = digits.slice(1);
+        return remaining.slice(0, 3);
+    }
+
+    if (digits.length >= 10) {
+        return digits.slice(0, 3);
+    }
+
+    return null;
+};
+
+const isTexasAreaCode = (response: NumVerifyResponse): boolean => {
+    if (response.country_code !== 'US') {
+        return false;
+    }
+
+    const areaCode =
+        extractUsAreaCode(response.international_format) ??
+        extractUsAreaCode(response.number);
+
+    return areaCode ? TEXAS_AREA_CODES.has(areaCode) : false;
+};
+
+const isSuccessfulVerification = (
+    payload: NumVerifyResponse | NumVerifyError
+): payload is NumVerifyResponse => {
+    return 'valid' in payload;
+};
+
 export interface ExcelPreview {
     success: boolean;
     fileName: string;
@@ -283,7 +344,21 @@ export const verifyAndCategorizePhones = async (
                 }
 
                 const verification = await verifyPhoneNumber(apiKey, data.originalValue);
-                
+                const isSuccess = isSuccessfulVerification(verification);
+
+                let valid = isSuccess ? verification.valid : false;
+                let lineType: VerifiedPhoneNumber['lineType'] = isSuccess ? verification.line_type : null;
+                let countryName = isSuccess ? verification.country_name : '';
+                let carrier = isSuccess ? verification.carrier : '';
+                let location = isSuccess ? verification.location : '';
+                let verificationData = isSuccess ? verification : null;
+                let error: string | undefined = !isSuccess ? verification.error.info : undefined;
+
+                if (isSuccess && valid && isTexasAreaCode(verification)) {
+                    valid = false;
+                    error = 'Texas area codes are not allowed';
+                }
+
                 // Check for cancellation after API call
                 if (shouldCancel && shouldCancel()) {
                     throw new Error('Cancelled');
@@ -294,13 +369,13 @@ export const verifyAndCategorizePhones = async (
                     originalValue: data.originalValue,
                     phoneNumber: phoneNumber,
                     // formatted: data.formatted,
-                    valid: 'valid' in verification ? verification.valid : false,
-                    lineType: 'line_type' in verification ? verification.line_type : null,
-                    countryName: 'country_name' in verification ? verification.country_name : '',
-                    carrier: 'carrier' in verification ? verification.carrier : '',
-                    location: 'location' in verification ? verification.location : '',
-                    verificationData: 'valid' in verification ? verification : null,
-                    error: 'error' in verification ? verification.error.info : undefined
+                    valid,
+                    lineType,
+                    countryName,
+                    carrier,
+                    location,
+                    verificationData,
+                    error
                 };
 
                 return verifiedPhone;
